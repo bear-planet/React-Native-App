@@ -1,13 +1,19 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, Button, TouchableOpacity, Image, ImageBackground, Dimensions, TouchableNativeFeedback } from 'react-native';
+import { UIManager, PermissionsAndroid, Platform, ScrollView} from 'react-native';
+import CameraRoll from "@react-native-community/cameraroll";
+//import { WebView} from 'react-native-webview';
 import axios from 'axios';
 import { render,ReactDOM } from 'react-dom';
 import * as Permissions from 'expo-permissions';
 import * as ImagePicker from 'expo-image-picker';
 import PageScrollView from 'react-native-page-scrollview';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 
 import styles from './styles';
+import ExpoStatusBar from 'expo-status-bar/build/ExpoStatusBar';
 
 class  Welcome extends React.Component {
   constructor(props) {
@@ -40,76 +46,7 @@ class  Welcome extends React.Component {
   }
 }
 
-class Fetch_flask extends React.Component {
-
-  constructor(props) {
-    super(props);
-    this.state = {
-      text: null,
-      img_base64: null,
-    };
-  }
-
-  getFetch=()=>{
-    fetch('http://172.31.231.55:5000/api').then((response) =>
-      response.blob().then((ImageBlob) => {
-        console.log("sucess fetch :");
-        img = document.createElement('IMG');
-        document.querySelector('.newImg').appendChild(img)
-         // 將 blog 物件轉為 url
-        img.src = URL.createObjectURL(imageBlob);
-        
-      })
-      .catch((error)=>{
-        console.log("fail fetch :", error);
-      })
-    );
-
-    const getAxios=()=>{
-      axios.get('http://172.31.231.55:5000/api').then((response)=>{
-          console.log("sucess axios :",response.data);
-      });
-    };
-
-  };
-
-  getFetch2=()=>{
-
-    fetch('http://172.31.231.55:5000/api', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        img_base64: this.props.img_base64,
-      })
-    }).then(response =>
-      response.json().then(data => {
-        console.log("success fetch :",data);
-        this.setState({text: data.img_base64});
-      })
-    );
-  };
-
-  View_content=()=>{
-    <TouchableOpacity onPress={()=> this.getFetch2()} style={styles.btnn}>
-       <Image source= {require('./assets/fetch_button.png')} />
-    </TouchableOpacity>   
-  }
-
-  render() {
-    return (
-    <View style={styles.btn} >
-       <Text style = {styles.text_st}>Hello, {this.state.text}</Text>
-    </View>
-    )
-  }
-  
-}
-
-
-class Pic extends React.Component {
+class Pic_new extends React.Component {
 
   constructor(props) {
     super(props);
@@ -122,15 +59,13 @@ class Pic extends React.Component {
       w: Dimensions.get('window').width,
       style_img: 'starry_night.jpg',
       imgArr: [
-        require('./assets/starry_night.jpg'),
-        require('./assets/caffe_night.jpg'),
-        require('./assets/lake.jpg'),
-        require('./assets/scream.jpg'),
-        require('./assets/sea.jpg'),
-        require('./assets/park.jpg'),
-        require('./assets/women.jpg'),
-        require('./assets/war.jpg')
-      ]
+        'https://i.imgur.com/MNShbM9.jpg',  // caffe_night.jpg
+        'https://i.imgur.com/OvCOIiM.jpg', // lake.jpg
+        'https://i.imgur.com/bK25pLN.jpg', // starry_night.jpg
+        'https://i.imgur.com/nmiTXU4.jpg', // war.jpg
+      ],
+      photo_uri: null,
+      isRefreshing: false
     };
   }
 
@@ -140,7 +75,7 @@ class Pic extends React.Component {
 
     this.setState({status: 'Please Wait...'})
 
-    fetch('http://7468e15b1cc8.ngrok.io/api', {
+    fetch('http://14cf562dabbe.ngrok.io/api', {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
@@ -189,53 +124,264 @@ class Pic extends React.Component {
     console.log("image uri from camera:",this.state.image);
   };
 
-  openCamera=()=>{
+  _downloadFile = async () => {
+    const { status } = await Permissions.askAsync(Permissions.CAMERA_ROLL);
 
-    const options = {
-      title:null,
-      cancelButtonTitle:'取消',
-      takePhotoButtonTitle:'拍照',
-      chooseFromLibraryButtonTitle:'選擇相冊',
-      quality: 1.0,
-      maxWidth: 500,
-      maxHeight: 500/16*9,
-      storageOptions: {
-          skipBackup: true
-      },
+     //permission for camera_roll
+    if (status === "granted") {
+
+       //store the cached file
+
+       let gifDir = null;
+
+       if(Platform.OS === 'android')
+          gifDir = FileSystem.cacheDirectory;  //Directory: Android用 cacheDirectory 
+       else if(Platform.OS === 'ios')    
+          gifDir = FileSystem.documentDirectory; //iOS用 documentDirectory
+
+       const dirInfo = await FileSystem.getInfoAsync(gifDir);
+       if (!dirInfo.exists) {
+         try{
+         console.log('download directory doesn\'t exist, creating...');
+         await FileSystem.makeDirectoryAsync(gifDir, { intermediates: true });
+         } catch(e) {
+           const Info = await FileSystem.getInfoAsync(gifDir);
+           console.log("ERROR",e,Info);
+         }
+       } 
+       
+       console.log('INNNNN',gifDir,dirInfo);
+    
+       const file = await FileSystem.downloadAsync(this.state.image , gifDir+'photo.jpg');
+
+       console.log('Filedownloaded!!', file);
+
+       //save the image in the galery using the link of the cached file
+       const assetLink = await MediaLibrary.createAssetAsync(file.uri);
+      // await MediaLibrary.createAlbumAsync('Planet', assetLink);
+       alert('已儲存至',assetLink);
+      
+       console.log('done!');
+
     }
-    //在ImagePicker組件的launchCamera方法中，加入options參數，就可將圖片壓縮爲options中相應像素的照片
-    ImagePicker.launchCamera(options, (response) => {
-      if (response.didCancel) {
-          return;
-      } else {
-          console.log(response);
-      }
-   });
+    else{
+      console.log('No Permission');
+    }
+  };
+
+  //<Image style={styles.image} source={{ uri: 'data:image/jpeg;base64,'+this.state.image_64}} />
+
+  _renderAllImage() {  
+    let allImage = [];  
+    let imgsArr = this.state.imgArr;  
+    for (let i = 0; i < imgsArr.length; i++) {  
+      let imgsItem = imgsArr[i];  
+      allImage.push(  
+        <Image key={i} source={{uri: imgsItem}} 
+        style={ {width:800, height: 500}} />  
+      );  
+    }  
+    return allImage;  
+  }  
+
+
+  render() {
+    return (
+    <View style={styles.Pic_container}>
+      <View style={styles.container_pic}>
+        <Image style={styles.Pic_image} source={{ uri: this.state.image}} />
+        <View style={styles.row}>
+          <TouchableOpacity style={styles.Pic_button} onPress={this.selectPicture}>
+            <Text style={styles.text}>Gallery</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.Pic_button} onPress={this.takePicture}>
+            <Text style={styles.text}>Camera</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.Pic_button} onPress= {this.getFetch2} >
+            <Text style={styles.text}>Upload!</Text>
+          </TouchableOpacity> 
+        </View>
+        <TouchableOpacity style={styles.Pic_button} onPress= {this._downloadFile} >
+            <Text style={styles.text}>Save!</Text>
+        </TouchableOpacity>
+        <Text>{this.state.status},</Text>     
+      </View>
+      <ScrollView  
+          ref='scrollView'  
+          //水平方向  
+          style ={{width:this.state.w, height: 500,flex:3}}
+          horizontal={true}  
+          //當值為true時顯示滾動條  
+          showsHorizontalScrollIndicator={true}  
+          //當值為true時，滾動條會停在滾動視圖的尺寸的整數倍位置。這個可以用在水平分頁上  
+          pagingEnabled={true}  
+          //滑動完一貞  
+         // onMomentumScrollEnd={(e)=>{this._onAnimationEnd(e)}}  
+          //開始拖拽  
+        //  onScrollBeginDrag={()=>{this._onScrollBeginDrag()}}  
+          //結束拖拽  
+        //  onScrollEndDrag={()=>{this._onScrollEndDrag()}}  
+          >  
+          {this._renderAllImage()}  
+        </ScrollView>  
+    </View>
+    )
+  }
+}
+
+
+
+class Pic extends React.Component {
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      image: null,
+      image_64 : null,
+      fetch_img_64 : null,
+      status : 'Welcome',
+      choice : null,
+      w: Dimensions.get('window').width,
+      style_img: 'starry_night.jpg',
+      imgArr: [
+        require('./assets/starry_night.jpg'),
+        require('./assets/caffe_night.jpg'),
+        require('./assets/lake.jpg'),
+        require('./assets/scream.jpg'),
+        require('./assets/sea.jpg'),
+        require('./assets/park.jpg'),
+        require('./assets/women.jpg'),
+        require('./assets/war.jpg')
+      ],
+      photo_uri: null
+    };
   }
 
+  getFetch2=()=>{
+
+   if(this.state.image_64 != null){
+
+    this.setState({status: 'Please Wait...'})
+
+    fetch('http://14cf562dabbe.ngrok.io/api', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fetch_img_64: this.state.image_64,
+        user_choice: this.state.choice,
+        style_img: this.state.style_img
+      })
+    }).then(response =>
+      response.json().then(data => {
+        console.log("success fetch :",data);
+        this.setState({image: data.result , status: 'Welcome!'});
+
+      })
+    );
+    }
+    else{
+      alert("Please select a picture or shoot!");
+    }
+
+  };
+ 
+  
+  selectPicture = async () => {
+    await Permissions.askAsync(Permissions.CAMERA_ROLL);
+    const { cancelled, uri, base64 } = await ImagePicker.launchImageLibraryAsync({
+       aspect: [3, 4],
+       allowsEditing: true,
+       base64: true,
+    });
+    if (!cancelled) this.setState({ image: uri , image_64: base64, choice: 'album'});
+    console.log("image uri from phone:",this.state.image);
+   // console.log("image uri base64 from phone:",this.state.image_64);
+  };
+
+  takePicture = async () => {
+    await Permissions.askAsync(Permissions.CAMERA);
+    const { cancelled, uri, base64 } = await ImagePicker.launchCameraAsync({
+      aspect: [9, 9],
+      allowsEditing: false,
+      base64: true,
+    });
+    this.setState({ image: uri , image_64: base64 , choice: 'camera'});
+    console.log("image uri from camera:",this.state.image);
+  };
+
+  _downloadFile = async () => {
+    const { status } = await Permissions.askAsync(Permissions.CAMERA_ROLL);
+
+     //permission for camera_roll
+    if (status === "granted") {
+
+       //store the cached file
+
+       let gifDir = null;
+
+       if(Platform.OS === 'android')
+          gifDir = FileSystem.cacheDirectory;  //Directory: Android用 cacheDirectory 
+       else if(Platform.OS === 'ios')    
+          gifDir = FileSystem.documentDirectory; //iOS用 documentDirectory
+
+       const dirInfo = await FileSystem.getInfoAsync(gifDir);
+       if (!dirInfo.exists) {
+         try{
+         console.log('download directory doesn\'t exist, creating...');
+         await FileSystem.makeDirectoryAsync(gifDir, { intermediates: true });
+         } catch(e) {
+           const Info = await FileSystem.getInfoAsync(gifDir);
+           console.log("ERROR",e,Info);
+         }
+       } 
+       
+       console.log('INNNNN',gifDir,dirInfo);
+    
+       const file = await FileSystem.downloadAsync(this.state.image , gifDir+'photo.jpg');
+
+       console.log('Filedownloaded!!', file);
+
+       //save the image in the galery using the link of the cached file
+       const assetLink = await MediaLibrary.createAssetAsync(file.uri);
+      // await MediaLibrary.createAlbumAsync('Planet', assetLink);
+       alert('已儲存至',assetLink);
+      
+       console.log('done!');
+
+    }
+    else{
+      console.log('No Permission');
+    }
+  };
 
   //<Image style={styles.image} source={{ uri: 'data:image/jpeg;base64,'+this.state.image_64}} />
 
   render() {
     return (
-    <View style={styles.container}>
+    <View style={styles.Pic_container}>
       <View style={styles.container_pic}>
-        <Image style={styles.image} source={{ uri: this.state.image}} />
+        <Image style={styles.Pic_image} source={{ uri: this.state.image}} />
         <View style={styles.row}>
-          <TouchableOpacity style={styles.button} onPress={this.selectPicture}>
+          <TouchableOpacity style={styles.Pic_button} onPress={this.selectPicture}>
             <Text style={styles.text}>Gallery</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={this.takePicture}>
+          <TouchableOpacity style={styles.Pic_button} onPress={this.takePicture}>
             <Text style={styles.text}>Camera</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress= {this.getFetch2} >
+          <TouchableOpacity style={styles.Pic_button} onPress= {this.getFetch2} >
             <Text style={styles.text}>Upload!</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> 
         </View>
-        <Text>{this.state.status},</Text>
+        <TouchableOpacity style={styles.Pic_button} onPress= {this._downloadFile} >
+            <Text style={styles.text}>Save!</Text>
+        </TouchableOpacity>
+        <Text>{this.state.status},</Text>     
       </View>
       <PageScrollView
-       style={{width:this.state.w, height: this.state.w/16*9,flex:4}}
+       style={{width:this.state.w, height: this.state.w/16*9,flex:3}}
        builtinStyle= 'rotateChangeMode'
        builtinWH={{width:250, height:250/16*9}}
        imageArr={this.state.imgArr}
@@ -314,19 +460,19 @@ class PageScroll extends React.Component {
 
 }
 
-class PageScroll2 extends React.Component {
+class TopMess extends React.Component {
 
   constructor(props) {
     super(props);
     this.state = {
       w: Dimensions.get('window').width,
-    };
+    };   
   }
 
   render() {
     return(
       <PageScrollView
-	      style={{width:this.state.w, height:10 , alignItems:'center', backgroundColor:'#e6d1b1', flex:1,flexDirection:'row'}}
+	      style={{width:this.state.w, height:10 , alignItems:'center', backgroundColor:'#e6d1b1', flex:10,flexDirection:'row'}}
       	HorV="v"
       	ifShowPointerView={false}
       	datas={['[系統] 恭喜 隔壁老王 獲得超稀有星球 "溫泉星"','狂喜 ! YUSHA成功發現黃金十八猛漢!','早安 Face_Planet祝您~平安喜樂~']}
@@ -395,16 +541,64 @@ class PageScroll3 extends React.Component {
 
 }
 
-export default function App() {
+class MyWebComponent extends React.Component {
+  render() {
+    return <WebView source={{ uri: 'https://reactnative.dev/' }} />;
+  }
+}
 
+class Card extends React.Component {
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      image: require('./assets/lake.jpg'),
+      NumberHolder : 1,
+      imgArr : [
+        require('./assets/p1.png'),
+        require('./assets/p2.png'),
+        require('./assets/p3.png'),
+        require('./assets/p4.png'),
+        require('./assets/p5.png'),
+        require('./assets/hotpot.png')
+      ],
+      planet_image : require('./assets/p1.png')
+    };   
+  }
+
+  GenerateRandomNumber=()=>{
+
+    var RandomNumber = Math.floor(Math.random() * 6) ;
+
+    this.setState({
+      NumberHolder : RandomNumber,
+      planet_image : this.state.imgArr[RandomNumber]
+    })
+
+  }
+
+  render() {
+    return(
+
+      <View style={styles.container}>
+      <View style={styles.container}>
+        <Image style={styles.image} source={this.state.planet_image}></Image>
+      </View>
+      <TouchableOpacity style={styles.button} onPress={this.GenerateRandomNumber}>
+        <Text>RANDOM!</Text>
+      </TouchableOpacity>
+    </View>
+    
+    )
+  }
+  
+
+}
+
+export default function App() {
   
   return (
-  <View style={styles.container}>
-      <View style={{backgroundColor:'#ffffff',flex:1}}></View>
-      <PageScroll2/>
-      <Pic />
-  </View> 
-    
+      <Pic_new />
    );
 
 }

@@ -2,8 +2,13 @@ import { StyleSheet } from 'react-native';
 
 export default StyleSheet.create({
     container: {
-        flex: 15,
-        justifyContent: 'center',
+        alignItems: 'center',
+        justifyContent: 'center'
+      },
+      app_container: {
+        flex:1,
+        alignItems: 'center',
+        justifyContent: 'center'
       },
       btn: {
         justifyContent: 'center',
@@ -14,11 +19,7 @@ export default StyleSheet.create({
         justifyContent: 'center',
         padding: 10
       },
-      separator: {
-        marginVertical: 8,
-        borderBottomColor: '#737373',
-        borderBottomWidth: StyleSheet.hairlineWidth,
-      },
+
       backgroundImage: {
         flex: 1,
         resizeMode: 'cover', // or 'stretch'
@@ -39,18 +40,37 @@ export default StyleSheet.create({
         paddingTop: 10
       },
       image: {
+        width: 350, 
+        height: 350, 
+        resizeMode: 'contain',
+        marginTop:200
+      },
+      Pic_container:{
+        flex:1,
+        marginTop: 30,
+        backgroundColor: '#dddddd',
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+      Pic_image: {
         width: 300, 
         height: 400, 
-        backgroundColor: 'gray',
-        resizeMode: 'contain'
+        backgroundColor: 'gray'
       },
-      button: {
+      Pic_button: {
+        marginTop:30,
         padding: 13,
         margin: 15,
         backgroundColor: '#dddddd',
       },
+      button: {
+        padding: 10,
+        margin: 15,
+        backgroundColor: '#dddddd',
+        justifyContent: 'center',  
+      },
       container_pic: {
-        flex: 10,
+        flex: 9,
         backgroundColor: '#ffffff',
         alignItems: 'center',
         justifyContent: 'center',
@@ -64,7 +84,7 @@ export default StyleSheet.create({
       },
       PageScroll: {
         width : '100%',
-        height : 200,
+        height : 230,
         backgroundColor: '#ffffff'
       }
 
